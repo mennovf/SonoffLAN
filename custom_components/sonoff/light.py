@@ -613,7 +613,7 @@ class Sonoff104(EWeLinkToggle):
         }
 
     async def async_turn_on(self, **kwargs) -> None:
-        payload = 
+        payload = {}
 
         if ATTR_EFFECT in kwargs:
             mode = next(k for k, v in SONOFF104_MODES.items()
