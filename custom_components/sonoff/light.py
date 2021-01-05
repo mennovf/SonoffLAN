@@ -520,6 +520,18 @@ SONOFF104_MODES = {
     'colorful': 'Vivid'
 }
 
+# Taken straight from the debug mode and the eWeLink app
+SONOFF104_MODE_PAYLOADS = {
+    'bright': {'bright': {'r': 255, 'g': 255, 'b': 255, 'br': 100}},
+    'goodNight': {'goodNight': {'r': 254, 'g': 254, 'b': 126, 'br': 25}},
+    'read': {'read': {'r': 255, 'g': 255, 'b': 255, 'br': 60}},
+    'nightLight': {'nightLight': {'r': 255, 'g': 242, 'b': 226, 'br': 5}},
+    'party': {'party': {'r': 254, 'g': 132, 'b': 0, 'br': 45,'tf': 1, 'sp': 1}},
+    'leisure': {'leisure': {'r': 0, 'g': 40, 'b': 254, 'br': 55, 'tf': 1, 'sp': 1}},
+    'soft': {'soft': {'r': 38, 'g': 254, 'b': 0, 'br': 20, 'tf': 1, 'sp': 1}},
+    'colorful': {'colorful': {'r': 255, 'g': 0, 'b': 0, 'br': 100, 'tf': 1, 'sp': 1}},
+}
+
 
 class Sonoff104(EWeLinkToggle):
     _brightness = None
@@ -619,6 +631,8 @@ class Sonoff104(EWeLinkToggle):
             mode = next(k for k, v in SONOFF104_MODES.items()
                         if v == kwargs[ATTR_EFFECT])
             payload['ltype'] = mode
+            if mode in SONOFF104_MODE_PAYLOADS:
+                payload.update(SONOFF104_MODE_PAYLOADS[mode])
         else:
             mode = self._mode
 
