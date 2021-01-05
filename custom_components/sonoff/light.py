@@ -5,6 +5,7 @@ PSF-BLD-GL | light     | 44   | D1 (Sonoff D1)
 PSF-BFB-GL | fan_light | 34   | iFan (Sonoff iFan03)
 """
 import logging
+import asyncio
 
 from homeassistant.components.light import SUPPORT_BRIGHTNESS, \
     ATTR_BRIGHTNESS, SUPPORT_COLOR, ATTR_HS_COLOR, \
@@ -612,7 +613,7 @@ class Sonoff104(EWeLinkToggle):
         }
 
     async def async_turn_on(self, **kwargs) -> None:
-        payload = {'switch': 'on'}
+        payload = 
 
         if ATTR_EFFECT in kwargs:
             mode = next(k for k, v in SONOFF104_MODES.items()
@@ -645,5 +646,7 @@ class Sonoff104(EWeLinkToggle):
                 'br': int(round((br - 1.0) * (100.0 - 1.0) / 254.0 + 1.0)),
                 'ct': int(round((500.0 - ct) / (500.0 - 153.0) * 255.0))
             }
-
+        if not self._is_on:
+            await self.registry.send(self.deviceid, {'switch': 'on'});
+            await asyncio.sleep(0.1)
         await self.registry.send(self.deviceid, payload)
