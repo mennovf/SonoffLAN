@@ -636,8 +636,7 @@ class Sonoff104(EWeLinkToggle):
         else:
             mode = self._mode
 
-        if mode == 'color' and (ATTR_BRIGHTNESS in kwargs or
-                                ATTR_HS_COLOR in kwargs):
+        if mode == 'color':
             br = kwargs.get(ATTR_BRIGHTNESS) or self._brightness or 1
             hs = kwargs.get(ATTR_HS_COLOR) or self._hs_color or (0, 0)
             rgb = color.color_hs_to_RGB(*hs)
@@ -650,8 +649,7 @@ class Sonoff104(EWeLinkToggle):
                 'b': rgb[2],
             }
 
-        if mode == 'white' and (ATTR_BRIGHTNESS in kwargs or
-                                ATTR_COLOR_TEMP in kwargs):
+        if mode == 'white':
             br = kwargs.get(ATTR_BRIGHTNESS) or self._brightness or 1
             ct = kwargs.get(ATTR_COLOR_TEMP) or self._temp or 153
 
