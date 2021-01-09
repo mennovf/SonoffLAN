@@ -8,6 +8,8 @@ import hmac
 import json
 import logging
 import time
+import random
+import string
 from typing import Optional, Callable, List
 
 from aiohttp import ClientSession, WSMsgType, ClientConnectorError, \
@@ -95,7 +97,8 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
     _handlers = None
     _ws: Optional[ClientWebSocketResponse] = None
 
-    _baseurl = 'https://eu-api.coolkit.cc:8080/'
+    _baseurl = 'https://eu-apia.coolkit.cc/'
+    _ws_baseurl = 'https://eu-dispa.coolkit.cc/'
     _apikey = None
     _token = None
     _last_invocation = None
@@ -103,7 +106,7 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
     def __init__(self, session: ClientSession):
         self.session = session
 
-    async def _api(self, mode: str, api: str, payload: dict) \
+    async def _api(self, mode: str, api: str, payload: dict, ws = False) \
             -> Optional[dict]:
         """Send API request to Cloud Server.
 
@@ -113,30 +116,30 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
         :return: response as dict
         """
         ts = int(time.time())
-        payload.update({
-            'appid': self.appid,
-            'nonce': str(ts),  # 8-digit random alphanumeric characters
-            'ts': ts,  # 10-digit standard timestamp
-            'version': 8
-        })
         
         self._last_invocation = time.time()
 
+        url = self._ws_baseurl if ws else self._baseurl
+
+        headers = {'X-CK-Appid': self.appid, 'X-CK-Nonce': ''.join(random.choices(string.ascii_letters + string.digits, k=8))}
         if mode == 'post':
             auth = "Bearer " + self._token
-            coro = self.session.post(self._baseurl + api, json=payload,
-                                     headers={'Authorization': auth})
+            headers['Authorization'] = auth
+            coro = self.session.post(url + api, json=payload,
+                                     headers=headers)
         elif mode == 'get':
             auth = "Bearer " + self._token
-            coro = self.session.get(self._baseurl + api, params=payload,
-                                    headers={'Authorization': auth})
+            headers['Authorization'] = auth
+            coro = self.session.get(url + api, params=payload,
+                                    headers=headers)
         elif mode == 'login':
             hex_dig = hmac.new(self.appsecret.encode(),
                                json.dumps(payload).encode(),
                                digestmod=hashlib.sha256).digest()
             auth = "Sign " + base64.b64encode(hex_dig).decode()
-            coro = self.session.post(self._baseurl + api, json=payload,
-                                     headers={'Authorization': auth})
+            headers['Authorization'] = auth
+            coro = self.session.post(url + api, json=payload,
+                                     headers=headers)
         else:
             raise NotImplemented
 
@@ -209,7 +212,7 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
 
     async def _connect(self, fails: int = 0):
         """Permanent connection loop to Cloud Servers."""
-        resp = await self._api('post', 'dispatch/app', {'accept': 'ws'})
+        resp = await self._api('get', 'dispatch/app', {}, True)
         if resp:
             try:
                 url = f"wss://{resp['IP']}:{resp['port']}/api/ws"
@@ -283,31 +286,40 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
             username = f"+{username}"
 
         pname = 'email' if '@' in username else 'phoneNumber'
-        payload = {pname: username, 'password': password}
-        resp = await self._api('login', 'api/user/login', payload)
+        # TODO: Correct country code
+        payload = {pname: username, 'password': password, 'countryCode': '+32'}
+        resp = await self._api('login', 'v2/user/login', payload)
 
-        if resp is None or 'region' not in resp:
-            _LOGGER.error(f"Login error: {resp}")
+        if resp is None or 'error' not in resp or resp['error'] != 0 or 'data' not in resp:
+            _LOGGER.error(f"Login error resp: {resp}")
+            return False
+        data = resp['data']
+
+        if data is None or 'region' not in data:
+            _LOGGER.error(f"Login error data: {data}")
             return False
 
-        region = resp['region']
+        region = data['region']
         if region != 'eu':
             self._baseurl = self._baseurl.replace('eu', region)
+            self._ws_baseseurl = self._ws_baseurl.replace('eu', region)
             _LOGGER.debug(f"Redirect to region: {region}")
-            resp = await self._api('login', 'api/user/login', payload)
+            resp = await self._api('login', 'v2/user/login', payload)
 
-        self._apikey = resp['user']['apikey']
-        self._token = resp['at']
+        data = resp['data']
+        self._apikey = data['user']['apikey']
+        self._token = data['at']
 
         return True
 
     async def load_devices(self) -> Optional[list]:
         assert self._token, "Login first"
-        resp = await self._api('get', 'api/user/device', {'getTags': 1})
+        resp = await self._api('get', 'v2/device/thing', {'num': 0})
         if resp['error'] == 0:
-            num = len(resp['devicelist'])
+            num = len(resp['thingList'])
             _LOGGER.debug(f"{num} devices loaded from the Cloud Server")
-            return resp['devicelist']
+            _LOGGER.debug(f"DEVICES={resp['thingList']}")
+            return [thing['itemData'] for thing in resp['thingList']]
         else:
             _LOGGER.warning(f"Can't load devices: {resp}")
             return None
