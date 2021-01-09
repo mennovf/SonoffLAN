@@ -150,12 +150,13 @@ async def async_setup(hass: HomeAssistantType, hass_config: dict):
         device['available'] = device.get('online') or device.get('host')
 
         # collect info for logs
-        device['extra'] = utils.get_device_info(device)
+        extra = utils.get_device_info(device)
 
         # TODO: fix remove camera info from logs
         state.pop('partnerDevice', None)
 
-        info = {'uiid': device['uiid'], 'extra': device['extra'],
+        _LOGGER.debug(f'ADD_DEVICE {deviceid} {device} <- {registry.devices}')
+        info = {'uiid': device['uiid'], 'extra': extra,
                 'params': state}
         _LOGGER.debug(f"{deviceid} == Init   | {info}")
 

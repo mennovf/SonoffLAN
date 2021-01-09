@@ -105,6 +105,7 @@ class EWeLinkRegistry:
     def cache_load_devices(self, cachefile: str):
         """Load devices from cache."""
         self.devices = load_cache(cachefile)
+        _LOGGER.debug(f'CACHE_LOAD_DEVICES {self.devices}')
 
     async def cloud_login(self, username: str, password: str):
         return await self.cloud.login(username, password)
@@ -112,6 +113,7 @@ class EWeLinkRegistry:
     async def cloud_load_devices(self, cachefile: str = None):
         """Load devices list from Cloud Servers."""
         newdevices = await self.cloud.load_devices()
+        _LOGGER.debug(f'CLOUD_LOAD_DEVICES {newdevices}')
         if newdevices is not None:
             newdevices = {p['deviceid']: p for p in newdevices}
             if cachefile:

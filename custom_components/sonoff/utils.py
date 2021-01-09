@@ -109,7 +109,7 @@ def guess_device_class(config: dict):
 def get_device_info(config: dict):
     try:
         # https://developers.home-assistant.io/docs/device_registry_index/
-        sw = config['extra']['extra']['model']
+        sw = config['extra']['model']
         # zigbee device
         if sw == 'NON-OTA-GL':
             return None

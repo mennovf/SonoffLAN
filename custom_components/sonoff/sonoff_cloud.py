@@ -315,11 +315,16 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
     async def load_devices(self) -> Optional[list]:
         assert self._token, "Login first"
         resp = await self._api('get', 'v2/device/thing', {'num': 0})
+        _LOGGER.debug(f'thinglist request: {resp}')
         if resp['error'] == 0:
-            num = len(resp['thingList'])
+            data = resp['data']
+            num = len(data['thingList'])
             _LOGGER.debug(f"{num} devices loaded from the Cloud Server")
-            _LOGGER.debug(f"DEVICES={resp['thingList']}")
-            return [thing['itemData'] for thing in resp['thingList']]
+            _LOGGER.debug(f"DEVICES={data['thingList']}")
+            things = [thing['itemData'] for thing in data['thingList']]
+            for thing in things:
+                thing['uiid'] = thing['extra']['uiid']
+            return things
         else:
             _LOGGER.warning(f"Can't load devices: {resp}")
             return None
