@@ -90,7 +90,6 @@ class EWeLinkApp:
     appid = 'oeVkj2lYFGnJu5XUtWisfW4utiN4u9Mq'
     appsecret = '6Nz4n0xA8s8qdxQf2GqurZj2Fs55FUvM'
 
-
 class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
     devices: dict = None
     _handlers = None
@@ -99,6 +98,7 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
     _baseurl = 'https://eu-api.coolkit.cc:8080/'
     _apikey = None
     _token = None
+    _last_invocation = None
 
     def __init__(self, session: ClientSession):
         self.session = session
@@ -119,6 +119,8 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
             'ts': ts,  # 10-digit standard timestamp
             'version': 8
         })
+        
+        self._last_invocation = time.time()
 
         if mode == 'post':
             auth = "Bearer " + self._token
@@ -144,6 +146,16 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
         except (Exception, RuntimeError) as e:
             _LOGGER.exception(f"Coolkit API error: {e}")
             return None
+
+    async def scheduled_send_json(self, *args, **kwargs):
+        now = time.time()
+        delay = self._last_invocation + 0.1 - now
+        if delay > 0:
+            self._last_invocation = now + delay
+            await asyncio.sleep(delay)
+        else:
+            self._last_invocation = now
+        return await self._ws.send_json(*args, **kwargs)
 
     async def _process_ws_msg(self, data: dict):
         """Process WebSocket message."""
@@ -180,7 +192,7 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
                 _LOGGER.debug(f"{deviceid} => Cloud5 | "
                               f"Force update sequence: {sequence}")
 
-                await self._ws.send_json({
+                await self.scheduled_send_json({
                     'action': 'query',
                     'apikey': device['apikey'],
                     'selfApikey': self._apikey,
@@ -216,7 +228,7 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
                     'version': 8,
                     'sequence': str(int(ts * 1000))
                 }
-                await self._ws.send_json(payload)
+                await self.scheduled_send_json(payload)
 
                 msg: WSMessage = await self._ws.receive()
                 _LOGGER.debug(f"Cloud init: {json.loads(msg.data)}")
@@ -346,7 +358,7 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
             'params': data
         }
         _LOGGER.debug(f"{deviceid} => Cloud4 | {data} | {sequence}")
-        await self._ws.send_json(payload)
+        await self.scheduled_send_json(payload)
 
         # wait for response with same sequence
         return await self._wait_response(sequence)
