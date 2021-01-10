@@ -280,14 +280,18 @@ class EWeLinkCloud(ResponseWaiter, EWeLinkApp):
 
         asyncio.create_task(self._connect(fails))
 
-    async def login(self, username: str, password: str) -> bool:
+    async def login(self, username: str, password: str, countrycode: str) -> bool:
         # add a plus to the beginning of the phone number
+        pname = 'email'
         if '@' not in username and not username.startswith('+'):
             username = f"+{username}"
+            pname = 'phoneNumber'
+            if not countrycode:
+                countrycode = username[:3]
 
-        pname = 'email' if '@' in username else 'phoneNumber'
-        # TODO: Correct country code
-        payload = {pname: username, 'password': password, 'countryCode': '+32'}
+        if not countrycode.startswith('+'):
+            countrycode = f'+{countrycode}'
+        payload = {pname: username, 'password': password, 'countryCode': countrycode}
         resp = await self._api('login', 'v2/user/login', payload)
 
         if resp is None or 'error' not in resp or resp['error'] != 0 or 'data' not in resp:

@@ -24,6 +24,7 @@ DOMAIN = 'sonoff'
 # https://github.com/AlexxIT/SonoffLAN/issues/14
 SCAN_INTERVAL = timedelta(minutes=5)
 
+CONF_COUNTRYCODE = 'country_code'
 CONF_DEBUG = 'debug'
 CONF_DEFAULT_CLASS = 'default_class'
 CONF_DEVICEKEY = 'devicekey'
@@ -39,6 +40,7 @@ BINARY_DEVICE = [p for p in DEVICE_CLASSES if p != 'light']
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Optional(CONF_USERNAME): cv.string,
+        vol.Optional(CONF_COUNTRYCODE): cv.string,
         vol.Optional(CONF_PASSWORD): cv.string,
         vol.Optional(CONF_MODE, default='auto'): vol.In(CONF_MODES),
         vol.Optional(CONF_RELOAD, default='once'): vol.In(CONF_RELOADS),
@@ -100,7 +102,8 @@ async def async_setup(hass: HomeAssistantType, hass_config: dict):
 
     if has_credentials and not local_once:
         if await registry.cloud_login(config[CONF_USERNAME],
-                                      config[CONF_PASSWORD]):
+                                      config[CONF_PASSWORD],
+                                      config[CONF_COUNTRYCODE]):
             await registry.cloud_load_devices(cachefile)
 
         else:
