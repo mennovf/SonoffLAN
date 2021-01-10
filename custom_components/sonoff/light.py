@@ -520,24 +520,19 @@ SONOFF104_MODES = {
     'colorful': 'Vivid'
 }
 
-# Taken straight from the debug mode and the eWeLink app
-SONOFF104_MODE_PAYLOADS = {
-    'bright': {'r': 255, 'g': 255, 'b': 255, 'br': 100},
-    'goodNight': {'r': 254, 'g': 254, 'b': 126, 'br': 25},
-    'read': {'r': 255, 'g': 255, 'b': 255, 'br': 60},
-    'nightLight': {'r': 255, 'g': 242, 'b': 226, 'br': 5},
-    'party': {'r': 254, 'g': 132, 'b': 0, 'br': 45,'tf': 1, 'sp': 1},
-    'leisure': {'r': 0, 'g': 40, 'b': 254, 'br': 55, 'tf': 1, 'sp': 1},
-    'soft': {'r': 38, 'g': 254, 'b': 0, 'br': 20, 'tf': 1, 'sp': 1},
-    'colorful': {'r': 255, 'g': 0, 'b': 0, 'br': 100, 'tf': 1, 'sp': 1},
-}
-
-
 class Sonoff104(EWeLinkToggle):
     _brightness = None
     _hs_color = None
     _mode = None
     _temp = None
+    _effects = {}
+    
+    def __init__(self, registry, deviceid):
+        super().__init__(registry, deviceid)
+        _LOGGER.debug(f'SONOFF104 device={registry.devices[deviceid]}')
+        params = registry.devices[deviceid]['params']
+        self._effects = {key: params[key] for key, _ in SONOFF104_MODES.items() if key in params}
+        
 
     def _update_handler(self, state: dict, attrs: dict):
         self._attrs.update(attrs)
@@ -590,7 +585,7 @@ class Sonoff104(EWeLinkToggle):
     @property
     def effect_list(self):
         """Return the list of supported effects."""
-        return list(SONOFF104_MODES.values())
+        return [SONOFF104_MODES[key] for key in self._effects.keys()]
 
     @property
     def effect(self):
@@ -631,8 +626,8 @@ class Sonoff104(EWeLinkToggle):
             mode = next(k for k, v in SONOFF104_MODES.items()
                         if v == kwargs[ATTR_EFFECT])
             payload['ltype'] = mode
-            if mode in SONOFF104_MODE_PAYLOADS:
-                payload.update({mode: SONOFF104_MODE_PAYLOADS[mode]})
+            if mode in self._effects:
+                payload.update({mode: self._effects[mode]})
         else:
             mode = self._mode
 
