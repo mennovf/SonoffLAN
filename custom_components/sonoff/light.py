@@ -43,11 +43,21 @@ async def async_setup_platform(hass, config, add_entities,
     elif uiid == 57:
         add_entities([Sonoff57(registry, deviceid)])
     elif uiid == 104:
-        add_entities([Sonoff104(registry, deviceid)])
+        device = Sonoff104(registry, deviceid)
+        entities = [device]
+        deviceinfo = registry.devices[deviceid]
+        for devgroup in deviceinfo['devGroups']:
+            groupid = devgroup['groupId']
+            if groupid not in registry.devgroups:
+                registry.devgroups[groupid] = Sonoff104Group(registry, groupid)
+                entities.append(registry.devgroups[groupid])
+            registry.devgroups[groupid].add_device(device)
+        add_entities(entities)
     elif channels and len(channels) >= 2:
         add_entities([EWeLinkLightGroup(registry, deviceid, channels)])
     else:
         add_entities([EWeLinkToggle(registry, deviceid, channels)])
+    
 
 
 class SonoffD1(EWeLinkToggle):
@@ -657,3 +667,75 @@ class Sonoff104(EWeLinkToggle):
             await self.registry.send(self.deviceid, {'switch': 'on'});
             await asyncio.sleep(0.1)
         await self.registry.send(self.deviceid, payload)
+
+class Sonoff104Group(EWeLinkToggle):
+    groupid = ''
+    _devices = None
+    
+    def __init__(self, registry, groupid):
+        registry.devices[groupid] = {'name': 'Sonoff Device Group', 'params': dict(), 'uiid': 'devgroup', 'extra': dict(), 'handlers': [], 'available': True}
+        super().__init__(registry, groupid)
+        self.groupid = groupid
+        self._devices = []
+        _LOGGER.debug(f'GROUP ID={groupid}')
+    
+    def add_device(self, device):
+        _LOGGER.debug(f'GROUP ID={self.groupid} device={device}')
+        self._devices.append(device)
+
+    def _update_handler(self, state: dict, attrs: dict):
+        return
+
+    @property
+    def brightness(self):
+        """Return the brightness of this light between 0..255."""
+        return self._devices[0].brightness if self._devices else 0
+
+    @property
+    def hs_color(self):
+        """Return the hue and saturation color value [float, float]."""
+        return self._devices[0].hs_color if self._devices else [0, 0]
+
+    @property
+    def color_temp(self):
+        """Return the CT color value in mireds."""
+        return self._devices[0].color_temp if self._devices else 153
+
+    @property
+    def effect_list(self):
+        """Return the list of supported effects."""
+        return self._devices[0].effect_list if self._devices else []
+
+    @property
+    def effect(self):
+        """Return the current effect."""
+        return self._devices[0].effect if self._devices else SUPPORT_EFFECT
+
+    @property
+    def supported_features(self):
+        return self._devices[0].supported_features if self._devices else {}
+
+    @property
+    def capability_attributes(self):
+        return self._devices[0].capability_attributes if self._devices else {}
+
+    @property
+    def is_on(self):
+        return all(device.is_on for device in self._devices)
+
+    async def async_update(self):
+        for device in self._devices:
+            await device.async_update()
+
+    @property
+    def state_attributes(self):
+        return self._devices[0].state_attributes if self._devices else {}
+
+    async def async_turn_off(self):
+        for device in self._devices:
+            await device.async_turn_off()
+
+    async def async_turn_on(self, **kwargs) -> None:
+        _LOGGER.debug(f"TURNING ON GROUP={self.groupid} devices={self._devices}")
+        for device in self._devices:
+            await device.async_turn_on(**kwargs)

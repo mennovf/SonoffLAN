@@ -48,6 +48,7 @@ class EWeLinkRegistry:
       handlers: list, update handlers
     """
     devices: Optional[dict] = None
+    devgroups = {}
 
     # for bulk send switches command
     bulk_params = {}
